@@ -1,19 +1,18 @@
 use std::io;
 use std::io::stdout;
-use std::time::SystemTime;
 use ratatui::backend::CrosstermBackend;
-use ratatui::crossterm::{event, ExecutableCommand};
+use ratatui::crossterm::ExecutableCommand;
 use ratatui::crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::{Frame, Terminal};
-use ratatui::crossterm::event::{Event, KeyCode};
-use chrono::{DateTime, Local};
-use ratatui::prelude::*;
+use ratatui::prelude::{Alignment, Line, Style, Stylize};
 use tui_big_text::{BigText, PixelSize};
 use cmd::Cmd;
 use state::State;
 
 mod cmd;
 mod state;
+mod events;
+mod content;
 
 pub fn start() -> io::Result<()> {
     let mut state = State::new();
@@ -26,49 +25,16 @@ pub fn start() -> io::Result<()> {
             break;
         }
 
-        let content: String = content(state.last_command());
+        let content: String = content::create_by(&state);
         terminal.draw(|f| render(f, &content))?;
 
-        handle_events(&mut state)?;
+        let cmd = events::get_command()?;
+        state.update(cmd)
     }
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 
-    Ok(())
-}
-
-fn content(cmd: Cmd) -> String {
-    match cmd {
-        Cmd::Quit => String::new(),
-        Cmd::CurrentTime => current_time("%T"),
-        Cmd::Sdf => String::from("Sdf"),
-        Cmd::Empty => String::new(),
-    }
-}
-
-fn current_time(fmt: &str) -> String {
-    let time = SystemTime::now();
-    let date_time: DateTime<Local> = time.into();
-    date_time.format(fmt).to_string()
-}
-
-fn handle_events(state: &mut State) -> io::Result<()> {
-    if event::poll(std::time::Duration::from_millis(50))? {
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Press {
-                let current_command = match key.code {
-                    KeyCode::Char('q') => Cmd::Quit,
-                    KeyCode::Char('t') => Cmd::CurrentTime,
-                    KeyCode::Char('s') => Cmd::Sdf,
-                    _ => Cmd::Empty
-                };
-                if current_command != Cmd::Empty {
-                    state.update(current_command);
-                }
-            }
-        }
-    }
     Ok(())
 }
 
