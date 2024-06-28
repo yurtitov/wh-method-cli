@@ -1,0 +1,1 @@
+# Wim Hof method CLI
